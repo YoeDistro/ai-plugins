@@ -1,0 +1,13 @@
+{
+  "name": "Yocto AI Plugins",
+  "description": "AI agent workflows for accelerating Yocto development",
+  "version": "1.0.0",
+  "author": "YoeDistro",
+  "homepage": "https://github.com/YoeDistro/ai-plugins",
+  "license": "MIT",
+  "capabilities": {
+    "workflows": true,
+    "automation": true
+  },
+  "schema_version": "1.0"
+}
