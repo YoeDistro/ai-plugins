@@ -11,6 +11,22 @@ import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
+// Helper function to expand BitBake variables in paths
+// Note: This is a simple implementation that handles common cases like ${TOPDIR}
+// For production use, consider using bitbake's variable expansion if available
+function expandPath(layerPath: string, buildDir: string): string {
+  // Replace common BitBake variables with absolute paths
+  let expanded = layerPath;
+  
+  // Handle ${TOPDIR} which typically points to the parent of the build directory
+  expanded = expanded.replace(/\$\{TOPDIR\}/g, path.dirname(buildDir));
+  
+  // Handle other common variables if needed
+  expanded = expanded.replace(/\$\{BUILDDIR\}/g, buildDir);
+  
+  return expanded;
+}
+
 // Tool definitions for Yocto development
 const TOOLS: Tool[] = [
   {
@@ -263,7 +279,7 @@ async function handleLayerInfo(args: any): Promise<string> {
   result += `Found ${layerPaths.length} layers:\n\n`;
 
   for (const layerPath of layerPaths) {
-    const expandedPath = layerPath.replace(/\$\{[^}]+\}/g, buildDir + "/..");
+    const expandedPath = expandPath(layerPath, buildDir);
     const confLayerPath = path.join(expandedPath, "conf", "layer.conf");
     
     if (fs.existsSync(confLayerPath)) {
@@ -281,7 +297,6 @@ async function handleLayerInfo(args: any): Promise<string> {
         }
         
         // Count recipes
-        const recipesDir = path.join(expandedPath, "recipes-*");
         try {
           const recipeCount = executeCommand(`find ${expandedPath} -name "*.bb" 2>/dev/null | wc -l`).trim();
           result += `  Recipes: ${recipeCount}\n`;
@@ -326,7 +341,7 @@ async function handleRecipeSearch(args: any): Promise<string> {
     const results: string[] = [];
 
     for (const layerPath of layerPaths) {
-      const expandedPath = layerPath.replace(/\$\{[^}]+\}/g, buildDir + "/..");
+      const expandedPath = expandPath(layerPath, buildDir);
       const findCmd = `find ${expandedPath} -name "${recipeName}*.bb" 2>/dev/null`;
       const found = executeCommand(findCmd).trim();
       
@@ -405,13 +420,27 @@ async function handleDependencyGraph(args: any): Promise<string> {
 
   // Get runtime dependencies
   if (graphType === "rdepends" || graphType === "both") {
-    const rdependsCmd = `cd ${buildDir} && bitbake -g ${recipeName} && cat pn-depends.dot 2>&1 | grep "rdepends" | head -20`;
-    const output = executeCommand(rdependsCmd);
+    // First generate the dependency graph
+    const generateCmd = `cd ${buildDir} && bitbake -g ${recipeName}`;
+    executeCommand(generateCmd);
     
-    if (!output.includes("Error")) {
+    // Then read and parse the pn-depends.dot file
+    const pnDependsPath = path.join(buildDir, "pn-depends.dot");
+    if (fs.existsSync(pnDependsPath)) {
+      const pnContent = fs.readFileSync(pnDependsPath, "utf-8");
+      const lines = pnContent.split("\n").filter(l => l.includes("rdepends")).slice(0, 20);
+      
       result += "Runtime Dependencies (RDEPENDS):\n";
-      result += output || "  No runtime dependencies found\n";
+      if (lines.length > 0) {
+        lines.forEach(line => {
+          result += `  ${line.trim()}\n`;
+        });
+      } else {
+        result += "  No runtime dependencies found\n";
+      }
       result += "\n";
+    } else {
+      result += "Runtime Dependencies: Unable to generate pn-depends.dot\n\n";
     }
   }
 
@@ -506,9 +535,13 @@ async function handleRecipeTemplate(args: any): Promise<string> {
   }
   
   template += `LICENSE = "${license}"\n`;
+  // Note: Replace XXXXXXXX... with actual MD5 checksum of the LICENSE file
+  // Calculate using: md5sum LICENSE | cut -d' ' -f1
   template += `LIC_FILES_CHKSUM = "file://LICENSE;md5=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"\n\n`;
 
   template += `SRC_URI = "https://example.com/${recipeName}-\${PV}.tar.gz"\n`;
+  // Note: Replace XXXXXXXX... with actual SHA256 checksum of the source archive
+  // Calculate using: sha256sum source.tar.gz | cut -d' ' -f1
   template += `SRC_URI[sha256sum] = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"\n\n`;
 
   template += `S = "\${WORKDIR}/${recipeName}-\${PV}"\n\n`;

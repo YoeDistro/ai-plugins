@@ -5,9 +5,11 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
-// Create a demo log file
-const demoLogPath = '/tmp/demo-bitbake.log';
+// Create a demo log file in a cross-platform temporary directory
+const demoLogPath = path.join(os.tmpdir(), 'demo-bitbake.log');
 const demoLogContent = `NOTE: Started PRServer with DBfile: /build/cache/prserv.sqlite3, Address: 127.0.0.1:46627
 NOTE: Executing Tasks
 NOTE: Setscene tasks completed
@@ -66,7 +68,7 @@ console.log('\n=== How to use this with Claude ===');
 console.log('\n1. Configure Claude Desktop with the MCP server');
 console.log('   (see README.md for configuration instructions)');
 console.log('\n2. In Claude, simply ask:');
-console.log('   "Analyze the BitBake log at /tmp/demo-bitbake.log"');
+console.log(`   "Analyze the BitBake log at ${demoLogPath}"`);
 console.log('\n3. Claude will automatically:');
 console.log('   - Call the analyze-bitbake-log tool');
 console.log('   - Parse the log file');
