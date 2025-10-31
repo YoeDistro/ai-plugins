@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "yocto": {
+      "command": "node",
+      "args": ["/absolute/path/to/ai-plugins/dist/index.js"]
+    }
+  }
+}
